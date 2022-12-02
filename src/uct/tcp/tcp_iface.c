@@ -192,6 +192,11 @@ static int uct_tcp_iface_is_reachable_v2(const uct_iface_h tl_iface,
     uct_iface_local_addr_ns_t *local_addr_ns;
 
     if (iface->config.ifaddr.ss_family != tcp_dev_addr->sa_family) {
+        UCT_OUTPUT_DIAGNOSTIC_MESSAGE((params->field_mask & UCT_IFACE_IS_REACHABLE_FIELD_INFO_STRING),
+                                      params->info_string, params->info_string_length,
+                                      "different ss_family detected. local %d remote %d",
+                                      iface->config.ifaddr.ss_family,
+                                      tcp_dev_addr->sa_family);
         return 0;
     }
 
@@ -199,13 +204,17 @@ static int uct_tcp_iface_is_reachable_v2(const uct_iface_h tl_iface,
     if (!!(tcp_dev_addr->flags & UCT_TCP_DEVICE_ADDR_FLAG_LOOPBACK) !=
         ucs_sockaddr_is_inaddr_loopback(
                 (const struct sockaddr*)&iface->config.ifaddr)) {
+        UCT_OUTPUT_DIAGNOSTIC_MESSAGE((params->field_mask & UCT_IFACE_IS_REACHABLE_FIELD_INFO_STRING),
+                                      params->info_string, params->info_string_length,
+                                      "Loopback can connect only to loopback");
         return 0;
     }
 
     if (tcp_dev_addr->flags & UCT_TCP_DEVICE_ADDR_FLAG_LOOPBACK) {
         local_addr_ns = (uct_iface_local_addr_ns_t*)(tcp_dev_addr + 1);
         return uct_iface_local_is_reachable(local_addr_ns,
-                                            UCS_SYS_NS_TYPE_NET);
+                                            UCS_SYS_NS_TYPE_NET,
+                                            params);
     }
 
     /* We always report that a peer is reachable. connect() call will

@@ -101,6 +101,7 @@ enum {
         } \
     } while (0)
 
+
 /**
  * Output diagnostic message in terminal and copy it into buffer when _condition is true.
  */
@@ -880,7 +881,8 @@ void uct_iface_get_local_address(uct_iface_local_addr_ns_t *addr_ns,
                                  ucs_sys_namespace_type_t sys_ns_type);
 
 int uct_iface_local_is_reachable(uct_iface_local_addr_ns_t *addr_ns,
-                                 ucs_sys_namespace_type_t sys_ns_type);
+                                 ucs_sys_namespace_type_t sys_ns_type,
+                                 const uct_iface_is_reachable_params_t *params);
 
 /*
  * Invoke active message handler.

@@ -53,7 +53,8 @@ int uct_sm_iface_is_reachable_v2(const uct_iface_h tl_iface,
 {
     const uct_device_addr_t *dev_addr = params->device_addr;
     return uct_iface_local_is_reachable((uct_iface_local_addr_ns_t*)dev_addr,
-                                        UCS_SYS_NS_TYPE_IPC);
+                                        UCS_SYS_NS_TYPE_IPC,
+                                        params);
 }
 
 int uct_sm_iface_is_reachable(const uct_iface_h tl_iface,
