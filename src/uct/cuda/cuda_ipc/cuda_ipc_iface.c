@@ -69,12 +69,39 @@ static ucs_status_t uct_cuda_ipc_iface_get_address(uct_iface_h tl_iface,
     return UCS_OK;
 }
 
+static int uct_cuda_ipc_iface_is_reachable_v2(const uct_iface_h tl_iface,
+                                              const uct_iface_is_reachable_params_t *params)
+{
+    if (ucs_get_system_id() == *((const uint64_t*)params->device_addr)) {
+        UCT_OUTPUT_DIAGNOSTIC_MESSAGE((params->field_mask & UCT_IFACE_IS_REACHABLE_FIELD_INFO_STRING),
+                                      params->info_string, params->info_string_length,
+                                      "different system id detected. local %ld remote %ld",
+                                      ucs_get_system_id(),
+                                      *((const uint64_t*)params->device_addr));
+        return 0;
+    }
+
+    if (getpid() != *(pid_t*)params->iface_addr) {
+        UCT_OUTPUT_DIAGNOSTIC_MESSAGE((params->field_mask & UCT_IFACE_IS_REACHABLE_FIELD_INFO_STRING),
+                                      params->info_string, params->info_string_length,
+                                      "different process id detected. local %ld remote %ld",
+                                      getpid(),
+                                      *(pid_t*)params->iface_addr);
+        return 0;
+    }
+
+    return 1;
+}
+
 static int uct_cuda_ipc_iface_is_reachable(const uct_iface_h tl_iface,
                                            const uct_device_addr_t *dev_addr,
                                            const uct_iface_addr_t *iface_addr)
 {
-    return (ucs_get_system_id() == *((const uint64_t*)dev_addr)) &&
-           (getpid() != *(pid_t*)iface_addr);
+    return uct_iface_is_reachable_v2_wrapper(tl_iface,
+                                             dev_addr,
+                                             iface_addr,
+                                             (uct_iface_is_reachable_v2_func_t)
+                                             uct_cuda_ipc_iface_is_reachable_v2);
 }
 
 static double uct_cuda_ipc_iface_get_bw()
@@ -473,6 +500,15 @@ static ucs_mpool_ops_t uct_cuda_ipc_event_desc_mpool_ops = {
     .obj_init      = uct_cuda_ipc_event_desc_init,
     .obj_cleanup   = uct_cuda_ipc_event_desc_cleanup,
     .obj_str       = NULL
+};
+
+static uct_iface_internal_ops_t uct_cuda_ipc_iface_internal_ops = {
+    .iface_estimate_perf   = uct_base_iface_estimate_perf,
+    .iface_vfs_refresh     = (uct_iface_vfs_refresh_func_t)ucs_empty_function,
+    .ep_query              = (uct_ep_query_func_t)ucs_empty_function_return_unsupported,
+    .ep_invalidate         = (uct_ep_invalidate_func_t)ucs_empty_function_return_unsupported,
+    .ep_connect_to_ep_v2   = ucs_empty_function_return_unsupported,
+    .iface_is_reachable_v2 = (uct_iface_is_reachable_v2_func_t)uct_cuda_ipc_iface_is_reachable_v2
 };
 
 static UCS_CLASS_INIT_FUNC(uct_cuda_ipc_iface_t, uct_md_h md, uct_worker_h worker,
