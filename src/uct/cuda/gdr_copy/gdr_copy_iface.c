@@ -42,14 +42,41 @@ static ucs_status_t uct_gdr_copy_iface_get_address(uct_iface_h tl_iface,
     return UCS_OK;
 }
 
+static int uct_gdr_copy_iface_is_reachable_v2(const uct_iface_h tl_iface,
+                                              const uct_iface_is_reachable_params_t *params)
+{
+    const uct_iface_addr_t *iface_addr = params->iface_addr;
+    uct_gdr_copy_iface_t *iface        = ucs_derived_of(tl_iface, uct_gdr_copy_iface_t);
+    uct_gdr_copy_iface_addr_t *addr    = (uct_gdr_copy_iface_addr_t*)iface_addr;
+
+    if (addr == NULL) {
+        uct_iface_unreachable((params->field_mask & UCT_IFACE_IS_REACHABLE_FIELD_INFO_STRING),
+                              params->info_string, params->info_string_length,
+                              "addr is NULL");
+        return 0;
+    }
+
+    if (iface->id != *addr) {
+        uct_iface_unreachable((params->field_mask & UCT_IFACE_IS_REACHABLE_FIELD_INFO_STRING),
+                              params->info_string, params->info_string_length,
+                              "different iface->id detected. local %ld remote %ld",
+                              iface->id,
+                              *addr);
+        return 0;
+    }
+
+    return 1;
+}
+
 static int uct_gdr_copy_iface_is_reachable(const uct_iface_h tl_iface,
                                            const uct_device_addr_t *dev_addr,
                                            const uct_iface_addr_t *iface_addr)
 {
-    uct_gdr_copy_iface_t  *iface = ucs_derived_of(tl_iface, uct_gdr_copy_iface_t);
-    uct_gdr_copy_iface_addr_t *addr = (uct_gdr_copy_iface_addr_t*)iface_addr;
-
-    return (addr != NULL) && (iface->id == *addr);
+   return uct_iface_is_reachable_v2_wrapper(tl_iface,
+                                             dev_addr,
+                                             iface_addr,
+                                             (uct_iface_is_reachable_v2_func_t)
+                                             uct_gdr_copy_iface_is_reachable_v2);
 }
 
 static ucs_status_t
@@ -172,7 +199,8 @@ static uct_iface_internal_ops_t uct_gdr_copy_iface_internal_ops = {
     .iface_vfs_refresh   = (uct_iface_vfs_refresh_func_t)ucs_empty_function,
     .ep_query            = (uct_ep_query_func_t)ucs_empty_function_return_unsupported,
     .ep_invalidate       = (uct_ep_invalidate_func_t)ucs_empty_function_return_unsupported,
-    .ep_connect_to_ep_v2 = ucs_empty_function_return_unsupported
+    .ep_connect_to_ep_v2 = ucs_empty_function_return_unsupported,
+    .iface_is_reachable_v2 = (uct_iface_is_reachable_v2_func_t)uct_gdr_copy_iface_is_reachable_v2
 };
 
 static UCS_CLASS_INIT_FUNC(uct_gdr_copy_iface_t, uct_md_h md, uct_worker_h worker,

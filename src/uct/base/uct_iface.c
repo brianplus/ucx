@@ -908,17 +908,23 @@ out_detected:
 }
 
 int uct_iface_local_is_reachable(uct_iface_local_addr_ns_t *addr_ns,
-                                 ucs_sys_namespace_type_t sys_ns_type)
+                                 ucs_sys_namespace_type_t sys_ns_type,
+                                 const uct_iface_is_reachable_params_t *params)
 {
+    int ret;
     uct_iface_local_addr_ns_t my_addr = {};
 
     uct_iface_get_local_address(&my_addr, sys_ns_type);
-
     /* Do not merge these evaluations into single 'if' due to Clang compilation
      * warning */
     /* Check if both processes are on same host and both of them are in root (or
      * non-root) pid namespace */
     if (addr_ns->super.id != my_addr.super.id) {
+        uct_iface_unreachable((params->field_mask & UCT_IFACE_IS_REACHABLE_FIELD_INFO_STRING),
+                              params->info_string, params->info_string_length,
+                              "different super.id detected. local %ld remote %ld",
+                              addr_ns->super.id,
+                              my_addr.super.id);
         return 0;
     }
 
@@ -928,7 +934,16 @@ int uct_iface_local_is_reachable(uct_iface_local_addr_ns_t *addr_ns,
 
     /* We are in non-root PID namespace - return 1 if ID of namespaces are the
      * same */
-    return addr_ns->sys_ns == my_addr.sys_ns;
+    ret = (addr_ns->sys_ns == my_addr.sys_ns);
+    if (!ret) {
+        uct_iface_unreachable((params->field_mask & UCT_IFACE_IS_REACHABLE_FIELD_INFO_STRING),
+                              params->info_string, params->info_string_length,
+                              "different namespace detected. local %ld remote %ld",
+                              addr_ns->sys_ns,
+                              my_addr.sys_ns);
+    }
+
+    return ret;
 }
 
 void uct_iface_mpool_config_copy(ucs_mpool_params_t *mp_params,

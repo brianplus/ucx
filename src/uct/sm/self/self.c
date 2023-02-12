@@ -139,14 +139,25 @@ static ucs_status_t uct_self_iface_get_address(uct_iface_h tl_iface,
     return UCS_OK;
 }
 
+static int uct_self_iface_is_reachable_v2(const uct_iface_h tl_iface,
+                                          const uct_iface_is_reachable_params_t *params)
+{
+    const uct_iface_addr_t *iface_addr = params->iface_addr;
+    const uct_self_iface_t *iface      = ucs_derived_of(tl_iface, uct_self_iface_t);
+    const uct_self_iface_addr_t *addr  = (const uct_self_iface_addr_t*)iface_addr;
+
+    return (addr != NULL) && (iface->id == *addr);
+}
+
 static int uct_self_iface_is_reachable(const uct_iface_h tl_iface,
                                        const uct_device_addr_t *dev_addr,
                                        const uct_iface_addr_t *iface_addr)
 {
-    const uct_self_iface_t     *iface = ucs_derived_of(tl_iface, uct_self_iface_t);
-    const uct_self_iface_addr_t *addr = (const uct_self_iface_addr_t*)iface_addr;
-
-    return (addr != NULL) && (iface->id == *addr);
+    return uct_iface_is_reachable_v2_wrapper(tl_iface,
+                                             dev_addr,
+                                             iface_addr,
+                                             (uct_iface_is_reachable_v2_func_t)
+                                             uct_self_iface_is_reachable_v2);
 }
 
 static void uct_self_iface_sendrecv_am(uct_self_iface_t *iface, uint8_t am_id,
@@ -173,6 +184,15 @@ static ucs_mpool_ops_t uct_self_iface_mpool_ops = {
     .obj_str       = NULL
 };
 
+static uct_iface_internal_ops_t uct_self_iface_internal_ops = {
+    .iface_estimate_perf   = uct_base_iface_estimate_perf,
+    .iface_vfs_refresh     = (uct_iface_vfs_refresh_func_t)ucs_empty_function,
+    .ep_query              = (uct_ep_query_func_t)ucs_empty_function_return_unsupported,
+    .ep_invalidate         = (uct_ep_invalidate_func_t)ucs_empty_function_return_unsupported,
+    .ep_connect_to_ep_v2   = ucs_empty_function_return_unsupported,
+    .iface_is_reachable_v2 = (uct_iface_is_reachable_v2_func_t)uct_self_iface_is_reachable_v2
+};
+
 static UCS_CLASS_INIT_FUNC(uct_self_iface_t, uct_md_h md, uct_worker_h worker,
                            const uct_iface_params_t *params,
                            const uct_iface_config_t *tl_config)
@@ -197,7 +217,7 @@ static UCS_CLASS_INIT_FUNC(uct_self_iface_t, uct_md_h md, uct_worker_h worker,
 
     UCS_CLASS_CALL_SUPER_INIT(
             uct_base_iface_t, &uct_self_iface_ops,
-            &uct_base_iface_internal_ops, md, worker, params,
+            &uct_self_iface_internal_ops, md, worker, params,
             tl_config UCS_STATS_ARG(
                     (params->field_mask & UCT_IFACE_PARAM_FIELD_STATS_ROOT) ?
                             params->stats_root :
