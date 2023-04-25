@@ -2250,7 +2250,11 @@ static void ucp_ep_config_set_memtype_thresh(ucp_memtype_thresh_t *max_eager_sho
         max_eager_short->memtype_off = max_short;
     }
 
-    max_eager_short->memtype_on = max_short;
+    if(max_eager_short->memtype_on == -1) {
+        max_eager_short->memtype_on = max_short;
+    } else {
+        max_eager_short->memtype_on = ucs_min(max_eager_short->memtype_on, max_short);
+    }
 }
 
 /* Coverity assumes that mem_type_index could have value >= UCS_MEMORY_TYPE_LAST,
@@ -2760,6 +2764,9 @@ ucs_status_t ucp_ep_config_init(ucp_worker_h worker, ucp_ep_config_t *config,
                     worker->context, iface_attr, UCT_IFACE_FLAG_AM_SHORT,
                     iface_attr->cap.am.max_short, sizeof(ucp_am_hdr_t),
                     config->am.zcopy_thresh[0], &config->rndv.am_thresh);
+
+            am_max_eager_short = ucs_min(am_max_eager_short, worker->context->config.max_short);
+            worker->context->config.max_short = am_max_eager_short;
 
             ucp_ep_config_set_memtype_thresh(&config->am_u.max_eager_short,
                                              am_max_eager_short,

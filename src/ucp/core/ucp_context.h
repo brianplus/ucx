@@ -366,6 +366,8 @@ typedef struct ucp_context {
            unsigned               count;
            size_t                 *sizes;
         } am_mpools;
+        
+        ssize_t                   max_short;
     } config;
 
     /* Configuration of multi-threading support */

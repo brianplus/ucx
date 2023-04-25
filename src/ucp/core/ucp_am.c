@@ -1077,7 +1077,7 @@ UCS_PROFILE_FUNC(ucs_status_ptr_t, ucp_am_send_nbx,
          * max_short value
          */
         ret = ucp_am_send_req(req, count, &ucp_ep_config(ep)->am, param, proto,
-                              max_short->memtype_on, flags);
+                              worker->context->config.max_short, flags);
     }
 
 out:
